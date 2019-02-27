@@ -4,7 +4,7 @@
 %%% as the original ground truth images %%%
 %%pkg load image
 %%pkg load signal
-input_dir = fullfile(pwd,'results_reverse_filter');
+input_dir = fullfile(pwd,'results');
 
 % Directory with ground truth images
 GT_dir = fullfile(pwd,'self_validation_HR');

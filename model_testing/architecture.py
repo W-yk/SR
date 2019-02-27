@@ -6,7 +6,7 @@ import block as B
 class AttNet(nn.Module):
     def __init__(self, in_nc, out_nc, nf, nb, upscale=4, norm_type='batch', act_type='relu', \
             mode='NAC', res_scale=1, upsample_mode='upconv'):
-        super(SRResNet, self).__init__()
+        super(AttNet, self).__init__()
         n_upscale = int(math.log(upscale, 2))
         if upscale == 3:
             n_upscale = 1
