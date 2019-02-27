@@ -12,7 +12,7 @@ test_img_folder = 'LR'
 
 
 model = arch.AttNet(3, 3, 64, 23, upscale=4, norm_type=None, act_type='relu',\
-            mode='CNA', res_scale=1, upsample_mode='upconv')   
+            mode='CNA', res_scale=1, upsample_mode='pixelshuffle')   
 #model = arch.SRResNet(3, 3, 64, 16, upscale=4, norm_type=None, act_type='relu', \
 #            mode='CNA', res_scale=1, upsample_mode='pixelshuffle')
 model.load_state_dict(torch.load(model_path), strict=True)

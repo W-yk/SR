@@ -37,7 +37,6 @@ class AttNet(nn.Module):
         x = self.model(x)
         return x
 
-
 class SRResNet(nn.Module):
     def __init__(self, in_nc, out_nc, nf, nb, upscale=4, norm_type='batch', act_type='relu', \
             mode='NAC', res_scale=1, upsample_mode='upconv'):
