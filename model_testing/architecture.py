@@ -30,7 +30,7 @@ class AttNet(nn.Module):
         HR_conv0 = B.conv_block(nf, nf, kernel_size=3, norm_type=None, act_type=act_type)
         HR_conv1 = B.conv_block(nf, out_nc, kernel_size=3, norm_type=None, act_type=None)
 
-        self.model = B.sequential(fea_conv, B.ShortcutBlock(B.sequential(*resnet_blocks, LR_conv)),Self_At,\
+        self.model = B.sequential(fea_conv, B.ShortcutBlock(Self_At,B.sequential(*resnet_blocks, Self_At,LR_conv)),\
             *upsampler, HR_conv0, HR_conv1)
 
     def forward(self, x):
