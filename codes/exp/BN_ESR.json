@@ -1,41 +1,45 @@
 {
-  "name": "IS_SRGAN_x4" //  please remove "debug_" during training
-  , "use_tb_logger": true
+  "name": "BN_ESR" //  please remove "debug_" during training
+  , "use_tb_logger": false
   , "model":"srragan"
   , "scale": 4
-  , "gpu_ids": [0, 1, 2, 3]
+  , "gpu_ids": [1]
 
   , "datasets": {
     "train": {
       "name": "DIV2K"
       , "mode": "LRHR"
-      , "dataroot_HR": "/mnt/nvmebeegfs/SR_files/final/celeba_1000_HR/"
-      , "dataroot_LR": "/mnt/nvmebeegfs/SR_files/final/celeba_1000_LRx4/"
+      , "dataroot_HR": "/chpc/projects/asc19/SR/SR_dataset/final/EuFace/train/HR"
+      ,"dataroot_LR":"/chpc/projects/asc19/SR/SR_dataset/final/EuFace/train/LR"
       , "subset_file": null
       , "use_shuffle": true
       , "n_workers": 8
       , "batch_size": 16
       , "HR_size_w": 112
       , "HR_size_h": 96
-      , "use_flip": true
-      , "use_rot": true
+      , "use_flip": false
+      , "use_rot": false
     }
     , "val": {
       "name": "val_set14_part"
       , "mode": "LRHR"
-      , "dataroot_HR": "/mnt/nvmebeegfs/SR_files/final/helen_50_HR/"
-      , "dataroot_LR": "/mnt/nvmebeegfs/SR_files/final/helen_50_LRx4/"
+      , "dataroot_HR": "/chpc/projects/asc19/SR/SR_dataset/final/EuFace/test/HR"
+      , "dataroot_LR": "/chpc/projects/asc19/SR/SR_dataset/final/EuFace/test/LR"
+      , "HR_size_w": 112
+      , "HR_size_h": 96
+      , "use_flip": false
+      , "use_rot": false
     }
   }
 
   , "path": {
-    "root": "./experiments"
-    //, "pretrain_model_G": "../experiments/pretrained_models/79_130k.pth"
+    "root": "./exp"
+    , "pretrain_model_G": "/chpc/projects/asc19/SR/BasicSR/experiments/pretrained_models/79_130k.pth"
   }
 
   , "network_G": {
     "which_model_G": "sr_resnet" // RRDB_net | sr_resnet
-    , "norm_type": null
+    , "norm_type": "batch"
     , "mode": "CNA"
     , "nf": 64
     , "nb": 16
@@ -63,7 +67,8 @@
     , "lr_scheme": "MultiStepLR"
     , "lr_steps": [50000, 100000, 200000, 300000]
     , "lr_gamma": 0.5
-
+    , "use_IS": false
+    , "weight_IS": 1
     , "pixel_criterion": "l1"
     , "pixel_weight": 1e-2
     , "feature_criterion": "l1"

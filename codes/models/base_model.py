@@ -60,7 +60,7 @@ class BaseModel():
     def load_network(self, load_path, network, strict=True):
         if isinstance(network, nn.DataParallel):
             network = network.module
-        network.load_state_dict(torch.load(load_path), strict=strict)
+        network.load_state_dict(torch.load(load_path), strict=False)
 
     def save_training_state(self, epoch, iter_step):
         '''Saves training state during training, which will be used for resuming'''

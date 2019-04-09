@@ -25,9 +25,8 @@ class SRRaGANModel(BaseModel):
             self.netD.train()
         self.load()  # load G and D if needed
 
-        self.IS = True
-        self.is_weight = 1
-        
+        self.IS = train_opt['use_IS']
+        self.is_weight = train_opt["weight_IS"]
         # define losses, optimizer and scheduler
         if self.is_train:
             # G pixel loss
@@ -62,10 +61,9 @@ class SRRaGANModel(BaseModel):
 
             # IS loss
 
-            if(self.IS):
-                self.IS_loss = nn.L1Loss().to(self.device)
-                self.netS = networks.sphere(opt).to(self.device)
-                self.netS.cuda()
+            self.IS_loss = nn.L1Loss().to(self.device)
+            self.netS = networks.sphere(opt).to(self.device)
+            self.netS.cuda()
 
             # GD gan loss
             self.cri_gan = GANLoss(train_opt['gan_type'], 1.0, 0.0).to(self.device)
@@ -113,10 +111,8 @@ class SRRaGANModel(BaseModel):
     def feed_data(self, data, need_HR=True):
         # LR
         self.var_L = data['LR'].to(self.device)
-
         if need_HR:  # train or val
             self.var_H = data['HR'].to(self.device)
-
             input_ref = data['ref'] if 'ref' in data else data['HR']
             self.var_ref = input_ref.to(self.device)
 
@@ -142,9 +138,9 @@ class SRRaGANModel(BaseModel):
             if self.IS:
                 real_embedding = self.netS(self.var_H).detach()
                 fake_embedding = self.netS(self.fake_H)
-                cos = nn.CosineSimilarity(dim=1, eps=1e-6).to(self.device)(real_embedding,fake_embedding)
+                cos = torch.mean(nn.CosineSimilarity(dim=1, eps=1e-6).to(self.device)(real_embedding,fake_embedding))
 
-                l_g_is = self.is_weight *torch.mean(1- cos)
+                l_g_is = self.is_weight *(1-cos)
                 l_g_total += l_g_is
 
 
@@ -195,6 +191,7 @@ class SRRaGANModel(BaseModel):
                 self.log_dict['l_g_fea'] = l_g_fea.item()
             if self.IS:
                 self.log_dict['l_g_is'] = l_g_is.item()
+                self.log_dict['IS_train'] = cos.item()
                 
             self.log_dict['l_g_gan'] = l_g_gan.item()
         # D
@@ -216,6 +213,14 @@ class SRRaGANModel(BaseModel):
     def get_current_log(self):
         return self.log_dict
 
+    def get_IS(self):
+
+        self.netS.eval()
+        real_embedding = self.netS(self.var_H.detach())
+        fake_embedding = self.netS(self.fake_H.detach())
+        cos = torch.mean(nn.CosineSimilarity(dim=1, eps=1e-6).to(self.device)(real_embedding,fake_embedding)).detach()
+
+        return cos
     def get_current_visuals(self, need_HR=True):
         out_dict = OrderedDict()
         out_dict['LR'] = self.var_L.detach()[0].float().cpu()
