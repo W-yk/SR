@@ -1,3 +1,5 @@
+# coding=utf-8
+
 import os.path
 import sys
 import math
@@ -120,6 +122,7 @@ def main():
             # validation
             if current_step % opt['train']['val_freq'] == 0:
                 avg_psnr = 0.0
+                avg_IS = 0.0
                 idx = 0
                 for val_data in val_loader:
                     idx += 1
@@ -138,7 +141,10 @@ def main():
                     save_img_path = os.path.join(img_dir, '{:s}_{:d}.png'.format(\
                         img_name, current_step))
                     util.save_img(sr_img, save_img_path)
-
+                    
+                    #calculate IS
+                    IS = model.get_IS()
+                    avg_IS += IS
                     # calculate PSNR
                     crop_size = opt['scale']
                     gt_img = gt_img / 255.
@@ -148,15 +154,16 @@ def main():
                     avg_psnr += util.calculate_psnr(cropped_sr_img * 255, cropped_gt_img * 255)
 
                 avg_psnr = avg_psnr / idx
-
+                avg_IS = avg_IS/ idx
                 # log
-                logger.info('# Validation # PSNR: {:.4e}'.format(avg_psnr))
+                logger.info('# Validation # PSNR: {:.4e} IS : {:.4e}'.format(avg_psnr,avg_IS))
                 logger_val = logging.getLogger('val')  # validation logger
-                logger_val.info('<epoch:{:3d}, iter:{:8,d}> psnr: {:.4e}'.format(
-                    epoch, current_step, avg_psnr))
+                logger_val.info('<epoch:{:3d}, iter:{:8,d}> psnr: {:.4e} is： {:.4e} '.format(
+                    epoch, current_step, avg_psnr,avg_IS))
                 # tensorboard logger
                 if opt['use_tb_logger'] and 'debug' not in opt['name']:
                     tb_logger.add_scalar('psnr', avg_psnr, current_step)
+                    tb_logger.add_scalar('IS', avg_IS, current_step)
 
             # save models and training states
             if current_step % opt['logger']['save_checkpoint_freq'] == 0:
