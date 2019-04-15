@@ -13,14 +13,14 @@ logger = logging.getLogger('base')
 
 
 class SRRaGANModel(BaseModel):
-    def __init__(self, opt):
+    def __init__(self, opt, dp_device_ids, local_rank):
         super(SRRaGANModel, self).__init__(opt)
         train_opt = opt['train']
 
         # define networks and load pretrained models
-        self.netG = networks.define_G(opt).to(self.device)  # G
+        self.netG = networks.define_G(opt, dp_device_ids, local_rank)  # G
         if self.is_train:
-            self.netD = networks.define_D(opt).to(self.device)  # D
+            self.netD = networks.define_D(opt, dp_device_ids, local_rank)  # D
             self.netG.train()
             self.netD.train()
         self.load()  # load G and D if needed
@@ -33,9 +33,9 @@ class SRRaGANModel(BaseModel):
             if train_opt['pixel_weight'] > 0:
                 l_pix_type = train_opt['pixel_criterion']
                 if l_pix_type == 'l1':
-                    self.cri_pix = nn.L1Loss().to(self.device)
+                    self.cri_pix = nn.L1Loss()
                 elif l_pix_type == 'l2':
-                    self.cri_pix = nn.MSELoss().to(self.device)
+                    self.cri_pix = nn.MSELoss()
                 else:
                     raise NotImplementedError('Loss type [{:s}] not recognized.'.format(l_pix_type))
                 self.l_pix_w = train_opt['pixel_weight']
@@ -47,9 +47,9 @@ class SRRaGANModel(BaseModel):
             if train_opt['feature_weight'] > 0:
                 l_fea_type = train_opt['feature_criterion']
                 if l_fea_type == 'l1':
-                    self.cri_fea = nn.L1Loss().to(self.device)
+                    self.cri_fea = nn.L1Loss()
                 elif l_fea_type == 'l2':
-                    self.cri_fea = nn.MSELoss().to(self.device)
+                    self.cri_fea = nn.MSELoss()
                 else:
                     raise NotImplementedError('Loss type [{:s}] not recognized.'.format(l_fea_type))
                 self.l_fea_w = train_opt['feature_weight']
@@ -57,25 +57,25 @@ class SRRaGANModel(BaseModel):
                 logger.info('Remove feature loss.')
                 self.cri_fea = None
             if self.cri_fea:  # load VGG perceptual loss
-                self.netF = networks.define_F(opt, use_bn=False).to(self.device)
+                self.netF = networks.define_F(opt, dp_device_ids, local_rank, use_bn=False)
 
             # IS loss
 
-            self.IS_loss = nn.L1Loss().to(self.device)
-            self.netS = networks.sphere(opt).to(self.device)
+            self.IS_loss = nn.L1Loss()
+            self.netS = networks.sphere(opt, dp_device_ids, local_rank)
             self.netS.cuda()
 
             # GD gan loss
-            self.cri_gan = GANLoss(train_opt['gan_type'], 1.0, 0.0).to(self.device)
+            self.cri_gan = GANLoss(train_opt['gan_type'], 1.0, 0.0)
             self.l_gan_w = train_opt['gan_weight']
             # D_update_ratio and D_init_iters are for WGAN
             self.D_update_ratio = train_opt['D_update_ratio'] if train_opt['D_update_ratio'] else 1
             self.D_init_iters = train_opt['D_init_iters'] if train_opt['D_init_iters'] else 0
 
             if train_opt['gan_type'] == 'wgan-gp':
-                self.random_pt = torch.Tensor(1, 1, 1, 1).to(self.device)
+                self.random_pt = torch.Tensor(1, 1, 1, 1).cuda()
                 # gradient penalty loss
-                self.cri_gp = GradientPenaltyLoss(device=self.device).to(self.device)
+                self.cri_gp = GradientPenaltyLoss().cuda()
                 self.l_gp_w = train_opt['gp_weigth']
 
             # optimizers
@@ -110,11 +110,11 @@ class SRRaGANModel(BaseModel):
 
     def feed_data(self, data, need_HR=True):
         # LR
-        self.var_L = data['LR'].to(self.device)
+        self.var_L = data['LR'].cuda(non_blocking=True)
         if need_HR:  # train or val
-            self.var_H = data['HR'].to(self.device)
+            self.var_H = data['HR'].cuda(non_blocking=True)
             input_ref = data['ref'] if 'ref' in data else data['HR']
-            self.var_ref = input_ref.to(self.device)
+            self.var_ref = input_ref.cuda(non_blocking=True)
 
     def optimize_parameters(self, step):
         # G

@@ -11,6 +11,7 @@ from collections import OrderedDict
 import logging
 
 import torch
+import torch.distributed as dist
 
 import options.options as option
 from utils import util
@@ -19,11 +20,26 @@ from models import create_model
 
 
 def main():
+
+    dist_backend = 'nccl'
+    dist_url = "tcp://has1:23456"
+
     # options
     parser = argparse.ArgumentParser()
     parser.add_argument('-opt', type=str, required=True, help='Path to option JSON file.')
+    parser.add_argument('-rank', type=int, required=True)
+    parser.add_argument('-local_rank', type=int, required=True)
+    parser.add_argument('-world_size', type=int, required=True)
+    
     opt = option.parse(parser.parse_args().opt, is_train=True)
     opt = option.dict_to_nonedict(opt)  # Convert to NoneDict, which return None for missing key.
+    rank = parser.parse_args().rank
+    local_rank = parser.parse_args().local_rank
+    world_size = parser.parse_args().world_size
+
+    dist.init_process_group(backend=dist_backend, init_method=dist_url, rank=int(rank), world_size=world_size)
+    dp_device_ids = [local_rank]
+    torch.cuda.set_device(local_rank)
 
     # train from scratch OR resume training
     if opt['path']['resume_state']:  # resuming training
@@ -82,7 +98,7 @@ def main():
     assert train_loader is not None
 
     # create model
-    model = create_model(opt)
+    model = create_model(opt, dp_device_ids, local_rank)
 
     # resume training
     if resume_state:
@@ -128,7 +144,8 @@ def main():
                     idx += 1
                     img_name = os.path.splitext(os.path.basename(val_data['LR_path'][0]))[0]
                     img_dir = os.path.join(opt['path']['val_images'], img_name)
-                    util.mkdir(img_dir)
+                    if rank == 0:
+                        util.mkdir(img_dir)
 
                     model.feed_data(val_data)
                     model.test()
@@ -140,7 +157,8 @@ def main():
                     # Save SR images for reference
                     save_img_path = os.path.join(img_dir, '{:s}_{:d}.png'.format(\
                         img_name, current_step))
-                    util.save_img(sr_img, save_img_path)
+                    if rank == 0:
+                        util.save_img(sr_img, save_img_path)
                     
                     #calculate IS
                     IS = model.get_IS()
@@ -155,25 +173,26 @@ def main():
 
                 avg_psnr = avg_psnr / idx
                 avg_IS = avg_IS/ idx
-                # log
-                logger.info('# Validation # PSNR: {:.4e} IS : {:.4e}'.format(avg_psnr,avg_IS))
-                logger_val = logging.getLogger('val')  # validation logger
-                logger_val.info('<epoch:{:3d}, iter:{:8,d}> psnr: {:.4e} is： {:.4e} '.format(
-                    epoch, current_step, avg_psnr,avg_IS))
-                # tensorboard logger
-                if opt['use_tb_logger'] and 'debug' not in opt['name']:
-                    tb_logger.add_scalar('psnr', avg_psnr, current_step)
-                    tb_logger.add_scalar('IS', avg_IS, current_step)
+                if rank == 0:
+                    # log
+                    logger.info('# Validation # PSNR: {:.4e} IS : {:.4e}'.format(avg_psnr,avg_IS))
+                    logger_val = logging.getLogger('val')  # validation logger
+                    logger_val.info('<epoch:{:3d}, iter:{:8,d}> psnr: {:.4e} is： {:.4e} '.format(
+                        epoch, current_step, avg_psnr,avg_IS))
+                    # tensorboard logger
+                    if opt['use_tb_logger'] and 'debug' not in opt['name']:
+                        tb_logger.add_scalar('psnr', avg_psnr, current_step)
+                        tb_logger.add_scalar('IS', avg_IS, current_step)
 
             # save models and training states
-            if current_step % opt['logger']['save_checkpoint_freq'] == 0:
+            if rank == 0 and current_step % opt['logger']['save_checkpoint_freq'] == 0:
                 logger.info('Saving models and training states.')
                 model.save(current_step)
                 model.save_training_state(epoch, current_step)
-
-    logger.info('Saving the final model.')
-    model.save('latest')
-    logger.info('End of training.')
+    if rank == 0:
+        logger.info('Saving the final model.')
+        model.save('latest')
+        logger.info('End of training.')
 
 
 if __name__ == '__main__':

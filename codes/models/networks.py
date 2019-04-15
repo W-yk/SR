@@ -81,7 +81,7 @@ def init_weights(net, init_type='kaiming', scale=1, std=0.02):
 
 
 # Generator
-def define_G(opt):
+def define_G(opt, dp_device_ids, local_rank):
     gpu_ids = opt['gpu_ids']
     opt_net = opt['network_G']
     which_model = opt_net['which_model_G']
@@ -105,12 +105,12 @@ def define_G(opt):
         init_weights(netG, init_type='kaiming', scale=0.1)
     if gpu_ids:
         assert torch.cuda.is_available()
-        netG = nn.DataParallel(netG)
+        netG = torch.nn.parallel.DistributedDataParallel(netG.cuda(), device_ids=dp_device_ids, output_device=local_rank)
     return netG
 
 
 # Discriminator
-def define_D(opt):
+def define_D(opt, dp_device_ids, local_rank):
     gpu_ids = opt['gpu_ids']
     opt_net = opt['network_D']
     which_model = opt_net['which_model_D']
@@ -138,11 +138,12 @@ def define_D(opt):
 
     init_weights(netD, init_type='kaiming', scale=1)
     if gpu_ids:
-        netD = nn.DataParallel(netD)
+        netD = netD.cuda()
+        netD = torch.nn.parallel.DistributedDataParallel(netD, device_ids=dp_device_ids, output_device=local_rank)
     return netD
 
 
-def define_F(opt, use_bn=False):
+def define_F(opt, dp_device_ids, local_rank, use_bn=False):
     gpu_ids = opt['gpu_ids']
     device = torch.device('cuda' if gpu_ids else 'cpu')
     # pytorch pretrained VGG19-54, before ReLU.
@@ -154,11 +155,12 @@ def define_F(opt, use_bn=False):
         use_input_norm=True, device=device)
     # netF = arch.ResNet101FeatureExtractor(use_input_norm=True, device=device)
     if gpu_ids:
-        netF = nn.DataParallel(netF)
+        netF = netF.cuda()
+        netF = torch.nn.parallel.DistributedDataParallel(netF, device_ids=dp_device_ids, output_device=local_rank)
     netF.eval()  # No need to train
     return netF
 
-def sphere(opt, use_bn=False):
+def sphere(opt, dp_device_ids, local_rank, use_bn=False):
     gpu_ids = opt['gpu_ids']
     device = torch.device('cuda' if gpu_ids else 'cpu')
 
@@ -167,7 +169,8 @@ def sphere(opt, use_bn=False):
     netS.load_state_dict(torch.load(pretrain_model),strict=False)
     # netF = arch.ResNet101FeatureExtractor(use_input_norm=True, device=device)
     if gpu_ids:
-        netS = nn.DataParallel(netS)
+        netS = netS.cuda()
+        netS = torch.nn.parallel.DistributedDataParallel(netS, device_ids=dp_device_ids, output_device=local_rank)
     netS.eval()  # No need to train
     return netS
 

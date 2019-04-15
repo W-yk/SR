@@ -7,13 +7,14 @@ def create_dataloader(dataset, dataset_opt):
     '''create dataloader '''
     phase = dataset_opt['phase']
     if phase == 'train':
+        sampler = torch.utils.data.distributed.DistributedSampler(dataset)
         return torch.utils.data.DataLoader(
             dataset,
             batch_size=dataset_opt['batch_size'],
-            shuffle=dataset_opt['use_shuffle'],
+            sampler=sampler,
             num_workers=dataset_opt['n_workers'],
             drop_last=True,
-            pin_memory=True)
+            pin_memory=False)
     else:
         return torch.utils.data.DataLoader(
             dataset, batch_size=1, shuffle=False, num_workers=1, pin_memory=True)

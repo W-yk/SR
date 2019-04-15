@@ -41,7 +41,7 @@ class BaseModel():
 
     def get_network_description(self, network):
         '''Get the string and total parameters of the network'''
-        if isinstance(network, nn.DataParallel):
+        if isinstance(network, nn.DataParallel) or isinstance(network, nn.parallel.DistributedDataParallel):
             network = network.module
         s = str(network)
         n = sum(map(lambda x: x.numel(), network.parameters()))
@@ -50,7 +50,7 @@ class BaseModel():
     def save_network(self, network, network_label, iter_step):
         save_filename = '{}_{}.pth'.format(iter_step, network_label)
         save_path = os.path.join(self.opt['path']['models'], save_filename)
-        if isinstance(network, nn.DataParallel):
+        if isinstance(network, nn.DataParallel) or isinstance(network, nn.parallel.DistributedDataParallel):
             network = network.module
         state_dict = network.state_dict()
         for key, param in state_dict.items():
@@ -58,7 +58,7 @@ class BaseModel():
         torch.save(state_dict, save_path)
 
     def load_network(self, load_path, network, strict=True):
-        if isinstance(network, nn.DataParallel):
+        if isinstance(network, nn.DataParallel) or isinstance(network, nn.parallel.DistributedDataParallel):
             network = network.module
         network.load_state_dict(torch.load(load_path), strict=False)
 

@@ -2,7 +2,7 @@ import logging
 logger = logging.getLogger('base')
 
 
-def create_model(opt):
+def create_model(opt, dp_device_ids, local_rank):
     model = opt['model']
 
     if model == 'sr':
@@ -15,6 +15,6 @@ def create_model(opt):
         from .SFTGAN_ACD_model import SFTGAN_ACD_Model as M
     else:
         raise NotImplementedError('Model [{:s}] not recognized.'.format(model))
-    m = M(opt)
+    m = M(opt, dp_device_ids, local_rank)
     logger.info('Model [{:s}] is created.'.format(m.__class__.__name__))
     return m
